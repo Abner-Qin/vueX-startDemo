@@ -1,0 +1,176 @@
+vuex是一个专门为vue.js设计的集中式状态管理架构。状态？我把它理解为在data中的属性需要共享给其他vue组件使用的部分，就叫做状态。简单的说就是data中需要共用的属性。比如：我们有几个页面要显示用户名称和用户等级，或者显示用户的地理位置。如果我们不把这些属性设置为状态，那每个页面遇到后，都会到服务器进行查找计算，返回后再显示。在中大型项目中会有很多共用的数据，所以尤大神给我们提供了vuex。
+1.引入vuex
+npm install vuex --save
+2.新建一个vuex文件夹（这个不是必须的），并在文件夹下新建store.js文件，文件中引入vue和vuex并用Vue.use进行引用。
+import Vue from 'vue';
+import Vuex from 'vuex';
+Vue.use(Vuex);
+增加一个常量对象（就是访问状态对象和SPA（单页应用程序）中的共享值）
+const state={
+    count:1
+}
+用export default 封装代码，让外部可以引用
+export default new Vuex.Store({
+	state,
+
+})
+在components文件夹下，新建一个count.vue
+<template>
+    <div>
+        <h2>{{msg}}</h2>
+        <hr/>
+        <h3>{{$store.state.count}}</h3>
+    </div>
+</template>
+<script>
+    import store from '@/vuex/store'
+    export default{
+        data(){
+            return{ }
+        },
+        store
+        
+    }
+</script>（显示1）
+
+在store.js文件中加入两个改变state的方法。
+mutations是固定的写法，意思是改变的
+const mutations={
+    add(state){
+        state.count++;
+    },
+    reduce(state){
+        state.count--;
+    }
+}
+在count.vue模板中加入两个按钮，并调用mutations中的方法。（Vuex提供了commit方法来修改状态）
+<div>
+    <button @click="$store.commit('add')">+</button>
+    <button @click="$store.commit('reduce')">-</button>
+</div>（点击加减1）
+二：state访问状态对象
+把stroe.js中的值，赋值给count.vue模板中的data值。有三种赋值方式
+1：通过computed的计算属性直接赋值
+<h3>{{count}}</h3>
+computed:{
+    count(){
+        return this.$store.state.count;
+    }
+}
+一定要写this，要不你会找不到$store的
+2：通过mapState的对象来赋值
+首先要用import引入mapState。（在count.vue中）
+import {mapState} from 'vuex';
+computed:mapState({
+        count:state=>state.count
+ })
+3：通过mapState的数组来赋值（这个算是最简单的写法了，在实际项目开发当中也经常这样使用。）
+ computed:mapState(["count"])
+三：Mutations修改状态（第一节两个按钮用过的$store.commit('add')"）
+store.js文件里给add方法加上一个参数n
+const mutations={
+    add(state,n){
+        state.count+=n;
+    },
+    reduce(state){
+        state.count--;
+    }
+}
+export default new Vuex.Store({
+    state,mutations
+})
+Count.vue
+<p>
+   <button @click="$store.commit('add',10)">+</button>（一次加10）
+   <button @click="$store.commit('reduce')">-</button>
+</p>
+模板获取Mutations方法
+实际开发中我们也不喜欢看到$store.commit( )这样的方法出现，我们希望跟调用模板里的方法一样调用。
+例如：@click=”reduce”   就和没引用vuex插件一样。
+要达到这种写法，只需要简单的两部就可以了：
+<button @click="reduce">-</button>
+1.在模板count.vue里用import 引入我们的mapMutations：
+import { mapState,mapMutations } from 'vuex';
+2.在模板的<script>标签里添加methods属性，并加入mapMutations
+ methods:mapMutations([
+        'add','reduce'
+]),
+然后就可以实现减了。
+四：getters计算过滤操作
+getters从表面是获得的意思，可以把他看作在获取数据之前进行的一种再编辑,相当于对数据的一个过滤和加工。你可以把它看作store.js的计算属性。
+比如我们现在要对store.js文件中的count进行一个计算属性的操作，就是在它输出前，给它加上100.
+首先要在store.js里用const声明我们的getters属性。
+const getters = {
+    count:function(state){
+        return state.count +=100;
+    }
+}（每次count 的值发生变化的时候，都会进行加100的操作）
+写好了gettters之后，还需要在Vuex.Store()里引入
+export default new Vuex.Store({
+    state,mutations,getters
+})
+count.vue（在vue 的构造器里边只能有一个computed属性，如果你写多个，只有最后一个computed属性可用，所以要对上节课写的computed属性进行一个改造。改造时我们使用ES6中的展开运算符”…”。）
+computed:{
+    ...mapState(["count"]),
+    count(){
+        return this.$store.getters.count;
+    }
+},
+用mapGetters简化模板写法：
+首先用import引入我们的mapGetters
+ import { mapState,mapMutations,mapGetters } from 'vuex';
+在computed属性中加入mapGetters
+ computed:{
+    ...mapState(["count"]),
+    count(){
+        return this.$store.getters.count;
+    }
+    加上import可以简写
+   ...mapGetters(["count"])
+}
+五：actions异步修改状态
+actions和Mutations功能基本一样，不同点是，actions是异步的改变state状态，而Mutations是同步改变状态。
+在store.js中声明actions
+const actions ={
+    addAction(context){
+        context.commit('add',10);
+ setTimeout(()=>{context.commit('reduce')},3000);
+		console.log('我比reduce提前执行');(增加异步检验可以看到在控制台先打印出了‘我比reduce提前执行’这句话。)
+    },
+    reduceAction({commit}){
+        commit('reduce')
+    }
+}
+context：上下文对象，这里你可以理解称store本身。
+{commit}：直接把commit对象传递过来，可以让方法体逻辑和代码更清晰明了。
+count.vue
+引入   import { mapState,mapMutations,mapGetters,mapActions} from 'vuex';
+<p>
+  <button @click="addAction">+</button>
+  <button @click="reduceAction">-</button>
+</p>
+
+methods:{
+    ...mapMutations([  
+        'add','reduce'
+    ]),
+    ...mapActions(['addAction','reduceAction'])
+},
+六：module模块组
+在vuex/store.js中声明模块组
+const moduleA={
+    state,mutations,getters,actions
+}
+声明好后，需要修改原来 Vuex.Stroe里的值：
+export default new Vuex.Store({
+    modules:{a:moduleA}
+})
+count.vue中使用count状态，要用插值的形式写入。
+<h3>{{$store.state.a.count}}</h3>
+如果想用简单的方法引入，还是要在计算属性中retrun状态
+computed:{
+    count(){
+        return this.$store.state.a.count;
+    }
+},即可直接写<h3>{{count}}</h3>
+
